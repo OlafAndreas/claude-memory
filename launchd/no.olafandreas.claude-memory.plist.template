@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>@LABEL@</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>@PYTHON@</string>
+    <string>@REPO@/cli.py</string>
+    <string>--config-dir</string>
+    <string>@CONFIG_DIR@</string>
+    <string>run-worker</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>CLAUDE_MEMORY_CLAUDE_BIN</key><string>@CLAUDE_BIN@</string>
+    <key>PATH</key><string>/opt/homebrew/bin:/usr/bin:/bin</string>
+  </dict>
+  <key>StartInterval</key><integer>600</integer>
+  <key>StandardErrorPath</key><string>@CONFIG_DIR@/claude-memory/log/launchd.err</string>
+</dict>
+</plist>
