@@ -13,6 +13,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from .paths import profile_env
+
 NOTE_KINDS = ("lesson", "outcome", "question")
 MAX_NOTES = 3
 
@@ -68,7 +70,7 @@ def call_claude(prompt: str, config_dir: Path, timeout: int = 180) -> dict:
     cmd = [claude_bin(), "-p", "--model", "haiku", "--tools", "", "--strict-mcp-config",
            "--no-session-persistence", "--settings", '{"disableAllHooks":true}',
            "--output-format", "json"]
-    env = {**os.environ, "CLAUDE_MEMORY_CHILD": "1", "CLAUDE_CONFIG_DIR": str(config_dir)}
+    env = {**profile_env(config_dir), "CLAUDE_MEMORY_CHILD": "1"}
     try:
         r = subprocess.run(cmd, input=prompt, capture_output=True, text=True, timeout=timeout, env=env)
     except subprocess.TimeoutExpired:

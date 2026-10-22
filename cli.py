@@ -69,7 +69,8 @@ def cmd_doctor(root: Path, cfg: Path) -> int:
     text = settings.read_text() if settings.exists() else ""
     for event, script, _ in HOOKS:
         check(f"{event} hook ({settings})", f"{REPO}/hooks/{script}" in text)
-    env = {**os.environ, "CLAUDE_CONFIG_DIR": str(cfg)}
+    from claude_memory.paths import profile_env
+    env = profile_env(cfg)
     try:
         mcp = subprocess.run(["claude", "mcp", "list"], capture_output=True, text=True, env=env, timeout=60)
         check("MCP server claude-memory registered", "claude-memory" in mcp.stdout)

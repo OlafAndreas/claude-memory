@@ -29,6 +29,21 @@ def memory_root(config_dir: Path | None = None) -> Path:
 _active_config_dir = config_dir
 
 
+def profile_env(config_dir: Path, base: dict | None = None) -> dict:
+    """Environment for running `claude` against a profile.
+
+    The default profile must run with CLAUDE_CONFIG_DIR unset: setting it to
+    ~/.claude makes Claude Code look for ~/.claude/.claude.json instead of
+    ~/.claude.json.
+    """
+    env = dict(os.environ if base is None else base)
+    if Path(config_dir).expanduser() == Path.home() / ".claude":
+        env.pop("CLAUDE_CONFIG_DIR", None)
+    else:
+        env["CLAUDE_CONFIG_DIR"] = str(config_dir)
+    return env
+
+
 def git_branch(cwd: str) -> str | None:
     """Current branch for `cwd`, or None outside git / on detached HEAD / on error."""
     try:

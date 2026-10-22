@@ -215,3 +215,11 @@ def test_claude_note_never_expires(env):
     _note(env, "lesson-mine", source="claude")
     worker.expire(env, date(2030, 1, 1))
     assert (env / "notes" / "lesson-mine.md").exists()
+
+
+def test_default_profile_leaves_config_dir_unset(env, tmp_path, monkeypatch):
+    monkeypatch.setattr(Path, "home", lambda: tmp_path / "home")
+    default = tmp_path / "home" / ".claude"
+    enqueue(env, "s1", transcript(tmp_path / "t.jsonl"))
+    worker.run(env, default)
+    assert calls(tmp_path)[0]["env"]["CLAUDE_CONFIG_DIR"] is None

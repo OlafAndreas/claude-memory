@@ -64,3 +64,10 @@ def test_slugify_cuts_at_word_boundary():
     assert slugify("Measure before trusting assumed dimensions") == "measure-before-trusting-assumed"
     assert slugify("Bøtte på Åsen") == "botte-pa-asen"
     assert slugify("!!!") == "note"
+
+
+def test_profile_env_default_unsets(monkeypatch, tmp_path):
+    from claude_memory.paths import profile_env
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    assert "CLAUDE_CONFIG_DIR" not in profile_env(tmp_path / ".claude", {"CLAUDE_CONFIG_DIR": "x", "A": "1"})
+    assert profile_env(tmp_path / ".claude-work", {"A": "1"}) == {"A": "1", "CLAUDE_CONFIG_DIR": str(tmp_path / ".claude-work")}

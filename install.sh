@@ -10,6 +10,13 @@ if [[ "${1:-}" == "--config-dir" ]]; then CONFIG_DIR="${2/#\~/$HOME}"; fi
 CONFIG_DIR="$(cd "$CONFIG_DIR" && pwd)"
 PY="$REPO/.venv/bin/python"
 
+# The default profile runs claude with CLAUDE_CONFIG_DIR unset (it would otherwise
+# look for ~/.claude/.claude.json instead of ~/.claude.json).
+claude_profile() {
+  if [[ "$CONFIG_DIR" == "$HOME/.claude" ]]; then env -u CLAUDE_CONFIG_DIR claude "$@"
+  else CLAUDE_CONFIG_DIR="$CONFIG_DIR" claude "$@"; fi
+}
+
 # --- venv ---------------------------------------------------------------------
 if [[ ! -x "$PY" ]]; then python3 -m venv "$REPO/.venv"; fi
 "$PY" -m pip install -q -r "$REPO/requirements.txt"
@@ -18,10 +25,10 @@ if [[ ! -x "$PY" ]]; then python3 -m venv "$REPO/.venv"; fi
 echo "hooks: $("$PY" "$REPO/claude_memory/install_hooks.py" "$CONFIG_DIR/settings.json" "$PY" "$REPO")"
 
 # --- MCP server -----------------------------------------------------------------
-if CLAUDE_CONFIG_DIR="$CONFIG_DIR" claude mcp list 2>/dev/null | grep -q '^claude-memory'; then
+if claude_profile mcp list 2>/dev/null | grep -q '^claude-memory'; then
   echo "mcp: already registered"
 else
-  CLAUDE_CONFIG_DIR="$CONFIG_DIR" claude mcp add --scope user --transport stdio claude-memory -- "$PY" "$REPO/mcp_server.py"
+  claude_profile mcp add --scope user --transport stdio claude-memory -- "$PY" "$REPO/mcp_server.py"
 fi
 
 # --- launchd --------------------------------------------------------------------
