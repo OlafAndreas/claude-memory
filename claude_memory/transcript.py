@@ -20,6 +20,42 @@ class Turn(NamedTuple):
     text: str
 
 
+_ACTION_MAX = 200
+_PATH_KEYS = ("file_path", "notebook_path", "path")
+
+
+def _action(item: dict) -> str:
+    """One short line for a tool call, so the summariser can tell who did what."""
+    name, args = item.get("name") or "tool", item.get("input") or {}
+    if isinstance(args, dict) and isinstance(args.get("command"), str):
+        detail = args["command"]
+    elif isinstance(args, dict) and name in ("Read", "Edit", "Write", "NotebookEdit") and \
+            any(isinstance(args.get(k), str) for k in _PATH_KEYS):
+        detail = next(args[k] for k in _PATH_KEYS if isinstance(args.get(k), str))
+    else:
+        detail = json.dumps(args, ensure_ascii=False)
+    line = f"[ran {name}: {' '.join(detail.split())}"
+    return (line[:_ACTION_MAX - 2] + "…]") if len(line) > _ACTION_MAX - 1 else line + "]"
+
+
+def _segments(content) -> list[str]:
+    """Text and tool-call lines of one message, in order."""
+    if not isinstance(content, list):
+        return [_text_of(content)]
+    out, text = [], []
+    for c in content:
+        if not isinstance(c, dict):
+            continue
+        if c.get("type") == "text":
+            text.append(c.get("text", ""))
+        elif c.get("type") == "tool_use":
+            out.append(_text_of("\n".join(text)) if text else "")
+            text = []
+            out.append(_action(c))
+    out.append(_text_of("\n".join(text)) if text else "")
+    return out
+
+
 def _text_of(content) -> str:
     if isinstance(content, str):
         parts = [content]
@@ -47,9 +83,9 @@ def read_turns(path: Path, start_line: int = 0) -> tuple[list[Turn], int]:
                 continue
             if rec.get("isMeta") or rec.get("isSidechain"):
                 continue
-            text = _text_of(msg.get("content"))
-            if text:
-                turns.append(Turn(kind, text))
+            for text in _segments(msg.get("content")) if kind == "assistant" else [_text_of(msg.get("content"))]:
+                if text:
+                    turns.append(Turn(kind, text))
     return turns, total
 
 
