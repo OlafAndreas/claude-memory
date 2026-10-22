@@ -22,6 +22,8 @@ from .transcript import condense, is_trivial, read_turns
 HANDOFF_TTL_DAYS = 30
 WORKER_NOTE_TTL_DAYS = 90
 MAX_ATTEMPTS = 3
+# ~75–100k tokens: well inside Haiku's context, so only day-long sessions get trimmed.
+CONDENSE_BUDGET = 300_000
 
 
 class _Permanent(Exception):
@@ -90,7 +92,7 @@ def _process(root: Path, config_dir: Path, item: dict, timeout: int) -> str:
     if prev_id and (root / "handoffs" / f"{prev_id}.md").exists():
         prev_summary = parse_note((root / "handoffs" / f"{prev_id}.md").read_text()).summary
 
-    prompt = build_prompt(condense(turns), _memory_index(config_dir), prev_summary, state["note_summaries"])
+    prompt = build_prompt(condense(turns, CONDENSE_BUDGET), _memory_index(config_dir), prev_summary, state["note_summaries"])
     result = call_claude(prompt, config_dir, timeout=timeout, cwd=root)
     if not result["worth_keeping"]:
         advance()

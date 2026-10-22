@@ -277,3 +277,15 @@ def test_failure_detail_is_scrubbed(env, tmp_path, monkeypatch):
     worker.run(env, cfg(env))
     assert "ghp_0123" not in (env / "queue" / "s1.json").read_text()
     assert "ghp_0123" not in (env / "log" / "worker.log").read_text()
+
+
+def test_long_session_is_not_cut_below_300k_chars(env, tmp_path):
+    t = tmp_path / "t.jsonl"
+    with open(t, "w") as f:
+        for i in range(100):
+            f.write(json.dumps({"type": "user", "message": {"role": "user", "content": f"Q{i:03d} " + "x" * 1000}}) + "\n")
+            f.write(json.dumps({"type": "assistant", "message": {"role": "assistant", "content": f"A{i:03d} " + "y" * 1000}}) + "\n")
+    enqueue(env, "s1", t)
+    worker.run(env, cfg(env))
+    p = calls(tmp_path)[0]["prompt"]
+    assert "omitted" not in p and "Q050" in p
