@@ -29,11 +29,13 @@ def seed(root, id="lesson-oring", surface_when="kestrel, O-ring, hollow, hul rin
                           created="2026-10-22T10:00:00+02:00", origin={"session_id": "s", "cwd": "/x"}))
 
 
-def test_end_enqueues(root):
-    run("session_end.py", {"session_id": "s1", "transcript_path": "/t.jsonl", "cwd": str(REPO),
+def test_end_enqueues(root, tmp_path):
+    t = tmp_path / "t.jsonl"
+    t.write_text("{}\n")
+    run("session_end.py", {"session_id": "s1", "transcript_path": str(t), "cwd": str(REPO),
                            "reason": "prompt_input_exit"})
     q = json.loads((root / "queue" / "s1.json").read_text())
-    assert q["git_branch"] and q["attempts"] == 0 and q["transcript_path"] == "/t.jsonl"
+    assert q["git_branch"] and q["attempts"] == 0 and q["transcript_path"] == str(t)
     assert q["cwd"] == str(REPO) and q["reason"] == "prompt_input_exit" and q["ended"]
 
 
@@ -109,3 +111,9 @@ def test_hint_hook_does_not_import_yaml(root):
                        input=json.dumps({"session_id": "s", "cwd": "/", "prompt": "x"}).encode(),
                        capture_output=True)
     assert b"yaml" not in r.stderr
+
+
+def test_end_skips_session_without_transcript(root, tmp_path):
+    run("session_end.py", {"session_id": "s1", "transcript_path": str(tmp_path / "never-written.jsonl"),
+                           "cwd": "/", "reason": "other"})
+    assert not list((root / "queue").glob("*.json"))

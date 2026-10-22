@@ -22,6 +22,9 @@ def main() -> None:
     data = json.load(sys.stdin)
     if data.get("reason") == "resume":
         return
+    # CLI subcommands such as `claude mcp list` end a session that never wrote a transcript.
+    if not data.get("transcript_path") or not Path(data["transcript_path"]).is_file():
+        return
     sid = data["session_id"]
     cwd = data.get("cwd") or ""
     item = {
