@@ -20,8 +20,6 @@ def main() -> None:
     if os.environ.get("CLAUDE_MEMORY_CHILD") == "1":
         return
     data = json.load(sys.stdin)
-    if data.get("reason") == "resume":
-        return
     # CLI subcommands such as `claude mcp list` end a session that never wrote a transcript.
     if not data.get("transcript_path") or not Path(data["transcript_path"]).is_file():
         return

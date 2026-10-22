@@ -39,9 +39,11 @@ def test_end_enqueues(root, tmp_path):
     assert q["cwd"] == str(REPO) and q["reason"] == "prompt_input_exit" and q["ended"]
 
 
-def test_end_skips_resume(root):
-    run("session_end.py", {"session_id": "s1", "transcript_path": "/t", "cwd": "/", "reason": "resume"})
-    assert not list((root / "queue").glob("*.json"))
+def test_end_enqueues_session_left_via_resume(root, tmp_path):
+    t = tmp_path / "t.jsonl"
+    t.write_text("{}\n")
+    run("session_end.py", {"session_id": "s1", "transcript_path": str(t), "cwd": "/", "reason": "resume"})
+    assert (root / "queue" / "s1.json").exists()
 
 
 def test_child_guard_all_hooks(root):
