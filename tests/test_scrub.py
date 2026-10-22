@@ -31,3 +31,14 @@ def test_leaves_normal_text():
 
 def test_does_not_eat_long_numbers_with_separators():
     assert scrub("ordre 2026-10-22 12345") == "ordre 2026-10-22 12345"
+
+
+@pytest.mark.parametrize("text,secret", [
+    ("aws AKIAIOSFODNN7EXAMPLE", "AKIAIOSFODNN7EXAMPLE"),
+    ("slack xoxb-123456789012-abcdefghijkl", "xoxb-1234"),
+    ("api_key=abc123def456", "abc123def456"),
+    ("token: abcdef123456789", "abcdef123456789"),
+    ("secret=s3cr3tvalue", "s3cr3tvalue"),
+])
+def test_scrubs_more_patterns(text, secret):
+    assert secret not in scrub(text)

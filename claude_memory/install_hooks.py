@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import json
+import os
+import shlex
 import shutil
 from datetime import datetime
 from pathlib import Path
@@ -16,7 +18,7 @@ def add_hooks(settings_path: Path, python: str, repo: Path) -> bool:
     hooks = settings.setdefault("hooks", {})
     changed = False
     for event, script, timeout in HOOKS:
-        command = f"{python} {repo}/hooks/{script}"
+        command = f"{shlex.quote(python)} {shlex.quote(f'{repo}/hooks/{script}')}"
         entries = hooks.setdefault(event, [])
         if any(h.get("command") == command for e in entries for h in e.get("hooks", [])):
             continue
@@ -27,8 +29,12 @@ def add_hooks(settings_path: Path, python: str, repo: Path) -> bool:
     if settings_path.exists():
         stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         shutil.copy2(settings_path, settings_path.with_name(f"{settings_path.name}.bak-{stamp}"))
-    settings_path.parent.mkdir(parents=True, exist_ok=True)
-    settings_path.write_text(json.dumps(settings, indent=2, ensure_ascii=False) + "\n")
+    # Replace the resolved target atomically, so a symlinked settings.json stays a symlink.
+    target = settings_path.resolve()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    tmp = target.with_name(f".{target.name}.claude-memory.tmp")
+    tmp.write_text(json.dumps(settings, indent=2, ensure_ascii=False) + "\n")
+    os.replace(tmp, target)
     return True
 
 

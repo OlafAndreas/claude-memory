@@ -66,13 +66,15 @@ def claude_bin() -> str:
     return found
 
 
-def call_claude(prompt: str, config_dir: Path, timeout: int = 180) -> dict:
+def call_claude(prompt: str, config_dir: Path, timeout: int = 180, cwd: Path | None = None) -> dict:
     cmd = [claude_bin(), "-p", "--model", "haiku", "--tools", "", "--strict-mcp-config",
            "--no-session-persistence", "--settings", '{"disableAllHooks":true}',
            "--output-format", "json"]
     env = {**profile_env(config_dir), "CLAUDE_MEMORY_CHILD": "1"}
+    env.pop("CLAUDECODE", None)  # same behaviour whether kicked from a session or launchd
     try:
-        r = subprocess.run(cmd, input=prompt, capture_output=True, text=True, timeout=timeout, env=env)
+        r = subprocess.run(cmd, input=prompt, capture_output=True, text=True, timeout=timeout, env=env,
+                           cwd=cwd)
     except subprocess.TimeoutExpired:
         raise SummariseError(f"timed out after {timeout}s")
     if r.returncode != 0:
@@ -84,13 +86,24 @@ def call_claude(prompt: str, config_dir: Path, timeout: int = 180) -> dict:
     return parse_result(inner)
 
 
+def _loads_lenient(inner: str):
+    """Plain JSON, else one fenced block around the whole reply, else first { to last }."""
+    candidates = [inner.strip()]
+    m = re.match(r"\s*```(?:json)?[ \t]*\n(.*)\n```\s*\Z", inner, re.S)
+    if m:
+        candidates.append(m.group(1))
+    if "{" in inner and "}" in inner:
+        candidates.append(inner[inner.index("{"):inner.rindex("}") + 1])
+    for text in candidates:
+        try:
+            return json.loads(text)
+        except ValueError:
+            continue
+    raise SummariseError(f"not JSON: {inner[:200]}")
+
+
 def parse_result(inner: str) -> dict:
-    m = re.search(r"```(?:json)?\s*(.*?)```", inner, re.S)
-    text = m.group(1) if m else inner
-    try:
-        data = json.loads(text.strip())
-    except ValueError:
-        raise SummariseError(f"not JSON: {inner[:200]}")
+    data = _loads_lenient(inner)
     if not isinstance(data, dict) or not isinstance(data.get("worth_keeping"), bool):
         raise SummariseError("missing worth_keeping")
     if not data["worth_keeping"]:

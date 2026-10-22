@@ -223,3 +223,57 @@ def test_default_profile_leaves_config_dir_unset(env, tmp_path, monkeypatch):
     enqueue(env, "s1", transcript(tmp_path / "t.jsonl"))
     worker.run(env, default)
     assert calls(tmp_path)[0]["env"]["CLAUDE_CONFIG_DIR"] is None
+
+
+def test_parse_result_plain_json_with_fence_in_body():
+    from claude_memory.summarise import parse_result
+    body = "Fixed it:\n```python\nprint(1)\n```\ndone"
+    inner = json.dumps({"worth_keeping": True, "handoff": {"summary": "s", "surface_when": "w", "body": body},
+                        "notes": []})
+    assert parse_result(inner)["handoff"]["body"] == body
+    assert parse_result(f"```json\n{inner}\n```")["handoff"]["body"] == body
+    assert parse_result(f"Here you go:\n{inner}\nThanks")["handoff"]["body"] == body
+
+
+def test_corrupt_queue_file_fails_and_others_continue(env, tmp_path):
+    (env / "queue" / "aaa.json").write_text("{trunc")
+    (env / "queue" / "bbb.json").write_text(json.dumps({"transcript_path": "/x"}))
+    enqueue(env, "ccc", transcript(tmp_path / "t.jsonl"))
+    res = worker.run(env, cfg(env))
+    assert res["written"] == 1 and res["failed"] == 2
+    assert sorted(p.name for p in (env / "queue" / "failed").glob("*.json")) == ["aaa.json", "bbb.json"]
+
+
+def test_worker_note_id_built_from_scrubbed_summary(env, tmp_path, monkeypatch):
+    monkeypatch.setenv("FAKE_CLAUDE_JSON", json.dumps({
+        "worth_keeping": True, "handoff": {"summary": "h", "surface_when": "w", "body": "b"},
+        "notes": [{"kind": "lesson", "summary": "sk-ant-api03-AbCdEf0123456789xyz leaked", "surface_when": "w",
+                   "body": "b"}]}))
+    enqueue(env, "s1", transcript(tmp_path / "t.jsonl"))
+    worker.run(env, cfg(env))
+    assert not any("abcdef0123" in p.name.lower() for p in (env / "notes").glob("*.md"))
+
+
+def test_claude_runs_in_neutral_cwd_without_claudecode(env, tmp_path, monkeypatch):
+    monkeypatch.setenv("CLAUDECODE", "1")
+    monkeypatch.chdir(tmp_path)
+    enqueue(env, "s1", transcript(tmp_path / "t.jsonl"))
+    worker.run(env, cfg(env))
+    c = calls(tmp_path)[0]
+    assert Path(c["cwd"]).resolve() == env.resolve() and c["claudecode"] is None
+
+
+def test_retry_failed_requeues_with_zero_attempts(env):
+    (env / "queue" / "failed" / "s1.json").write_text(json.dumps({"session_id": "s1", "attempts": 3, "error": "x"}))
+    assert worker.retry_failed(env) == 1
+    item = json.loads((env / "queue" / "s1.json").read_text())
+    assert item["attempts"] == 0 and "error" not in item
+    assert not list((env / "queue" / "failed").glob("*.json"))
+
+
+def test_failure_detail_is_scrubbed(env, tmp_path, monkeypatch):
+    monkeypatch.setenv("FAKE_CLAUDE_JSON", "ghp_0123456789abcdefABCDEF0123456789abcd")
+    enqueue(env, "s1", transcript(tmp_path / "t.jsonl"))
+    worker.run(env, cfg(env))
+    assert "ghp_0123" not in (env / "queue" / "s1.json").read_text()
+    assert "ghp_0123" not in (env / "log" / "worker.log").read_text()

@@ -35,7 +35,8 @@ the worker every 10 minutes.
 ```bash
 .venv/bin/python cli.py [--config-dir DIR] stats       # hints shown vs read, queue, counts
 .venv/bin/python cli.py [--config-dir DIR] doctor      # is everything installed?
-.venv/bin/python cli.py [--config-dir DIR] run-worker  # process the queue now
+.venv/bin/python cli.py [--config-dir DIR] run-worker    # process the queue now
+.venv/bin/python cli.py [--config-dir DIR] retry-failed  # requeue failed items (e.g. after an outage)
 .venv/bin/python cli.py [--config-dir DIR] reindex
 .venv/bin/pytest
 ```

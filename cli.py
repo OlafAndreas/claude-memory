@@ -2,7 +2,7 @@
 """
 claude-memory command line: reindex, run the worker, show stats, check the install.
 
-Run:  ./.venv/bin/python cli.py [--config-dir DIR] {reindex|run-worker|stats|doctor}
+Run:  ./.venv/bin/python cli.py [--config-dir DIR] {reindex|run-worker|retry-failed|stats|doctor}
 """
 from __future__ import annotations
 
@@ -38,6 +38,12 @@ def cmd_reindex(root: Path, cfg: Path) -> int:
 def cmd_run_worker(root: Path, cfg: Path) -> int:
     from claude_memory.worker import run
     print(json.dumps(run(root, cfg)))
+    return 0
+
+
+def cmd_retry_failed(root: Path, cfg: Path) -> int:
+    from claude_memory.worker import retry_failed
+    print(f"requeued {retry_failed(root)}")
     return 0
 
 
@@ -84,7 +90,8 @@ def cmd_doctor(root: Path, cfg: Path) -> int:
     return 0 if ok else 1
 
 
-COMMANDS = {"reindex": cmd_reindex, "run-worker": cmd_run_worker, "stats": cmd_stats, "doctor": cmd_doctor}
+COMMANDS = {"reindex": cmd_reindex, "run-worker": cmd_run_worker, "retry-failed": cmd_retry_failed,
+            "stats": cmd_stats, "doctor": cmd_doctor}
 
 
 def main() -> int:

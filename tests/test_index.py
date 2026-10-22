@@ -110,3 +110,25 @@ def test_hit_fields(root):
     rebuild_index(root)
     h = search(root, "zebra")[0]
     assert (h.id, h.kind, h.summary, h.date, h.cwd, h.strength) == ("A", "lesson", "Zebra note", "2026-10-22", "/z", 1)
+
+
+def test_rebuild_leaves_other_tmp_files_alone(root):
+    other = root / "index.sqlite.tmp"
+    other.write_text("another process is building this")
+    add(root, "A", surface_when="x")
+    rebuild_index(root)
+    assert other.read_text() == "another process is building this"
+
+
+def test_rebuild_waits_for_index_lock(root):
+    import fcntl
+    import threading
+    add(root, "A", surface_when="x")
+    done = threading.Event()
+    with open(root / "index.lock", "w") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        t = threading.Thread(target=lambda: (rebuild_index(root), done.set()))
+        t.start()
+        assert not done.wait(0.3)
+    t.join(2)
+    assert done.is_set()

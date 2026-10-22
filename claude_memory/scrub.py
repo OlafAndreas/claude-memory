@@ -10,7 +10,10 @@ _PATTERNS: list[tuple[re.Pattern, str]] = [
     (re.compile(r"\bgh[pousr]_[A-Za-z0-9]{20,}"), R),
     (re.compile(r"\beyJ[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]*"), R),
     (re.compile(r"(?i)\b(bearer)\s+[A-Za-z0-9._\-~+/=]{6,}"), r"\1 " + R),
-    (re.compile(r"(?i)\b(password|passord|passwd|pwd)(\s*[:=]\s*)\S+"), r"\1\2" + R),
+    (re.compile(r"\bAKIA[0-9A-Z]{16}\b"), R),
+    (re.compile(r"\bxox[abprs]-[A-Za-z0-9\-]{10,}"), R),
+    (re.compile(r"(?i)\b(password|passord|passwd|pwd|api[_\-]?key|access[_\-]?key|secret|token)"
+                r"(\s*[:=]\s*)\S+"), r"\1\2" + R),
     (re.compile(r"(?<![\d\-])\b\d{11}\b(?![\d\-])"), R),
 ]
 

@@ -91,7 +91,7 @@ def _process(root: Path, config_dir: Path, item: dict, timeout: int) -> str:
         prev_summary = parse_note((root / "handoffs" / f"{prev_id}.md").read_text()).summary
 
     prompt = build_prompt(condense(turns), _memory_index(config_dir), prev_summary, state["note_summaries"])
-    result = call_claude(prompt, config_dir, timeout=timeout)
+    result = call_claude(prompt, config_dir, timeout=timeout, cwd=root)
     if not result["worth_keeping"]:
         advance()
         return "skipped"
@@ -106,7 +106,7 @@ def _process(root: Path, config_dir: Path, item: dict, timeout: int) -> str:
                    origin=origin, seq=seq,
                    expires=(date.fromisoformat(created[:10]) + timedelta(days=HANDOFF_TTL_DAYS)).isoformat(),
                    links=[prev_id] if prev_id else [])
-    notes = [Note(id=f"{n['kind']}-{slugify(n['summary'])}", kind=n["kind"], summary=_clean(n["summary"]),
+    notes = [Note(id=f"{n['kind']}-{slugify(_clean(n['summary']))}", kind=n["kind"], summary=_clean(n["summary"]),
                   surface_when=_clean(n["surface_when"]), body=_clean(n["body"]), created=created,
                   origin=dict(origin), source="worker", links=[handoff.id])
              for n in result["notes"]]
@@ -132,21 +132,25 @@ def run(root: Path, config_dir: Path, timeout: int = 180) -> dict:
     counts = {"processed": 0, "written": 0, "skipped": 0, "failed": 0, "expired": 0}
     try:
         for qfile in sorted((root / "queue").glob("*.json")):
-            item = json.loads(qfile.read_text())
-            sid = item.get("session_id", qfile.stem)
+            sid, item = qfile.stem, {}
             counts["processed"] += 1
             try:
+                item = json.loads(qfile.read_text())
+                if not isinstance(item, dict):
+                    raise _Permanent("queue item is not an object")
+                sid = item.get("session_id", sid)
                 outcome = _process(root, config_dir, item, timeout)
-            except (_Permanent, SummariseError, OSError, ValueError) as e:
+            except Exception as e:  # noqa: BLE001 — one bad item must not block the queue
                 counts["failed"] += 1
+                retryable = isinstance(e, (SummariseError, OSError)) and not isinstance(e, _Permanent)
                 item["attempts"] = item.get("attempts", 0) + 1
-                item["error"] = str(e)
-                if isinstance(e, _Permanent) or item["attempts"] >= MAX_ATTEMPTS:
+                item["error"] = scrub(repr(e) if not retryable else str(e))
+                if not retryable or item["attempts"] >= MAX_ATTEMPTS:
                     (root / "queue" / "failed" / qfile.name).write_text(json.dumps(item))
                     qfile.unlink()
                 else:
                     qfile.write_text(json.dumps(item))
-                _log(root, sid, "failed", str(e))
+                _log(root, sid, "failed", item["error"])
                 continue
             counts[outcome] += 1
             qfile.unlink()
@@ -158,6 +162,22 @@ def run(root: Path, config_dir: Path, timeout: int = 180) -> dict:
         fcntl.flock(lock, fcntl.LOCK_UN)
         lock.close()
     return counts
+
+
+def retry_failed(root: Path) -> int:
+    """Move failed items back into the queue with a fresh attempt count."""
+    moved = 0
+    for f in (root / "queue" / "failed").glob("*.json"):
+        try:
+            item = json.loads(f.read_text())
+        except ValueError:
+            continue
+        item["attempts"] = 0
+        item.pop("error", None)
+        (root / "queue" / f.name).write_text(json.dumps(item))
+        f.unlink()
+        moved += 1
+    return moved
 
 
 def expire(root: Path, today: date) -> int:

@@ -9,7 +9,8 @@ prompt = sys.stdin.read()
 log = os.environ.get("FAKE_CLAUDE_LOG")
 if log:
     with open(log, "a") as f:
-        f.write(json.dumps({"argv": sys.argv[1:], "prompt": prompt,
+        f.write(json.dumps({"argv": sys.argv[1:], "prompt": prompt, "cwd": os.getcwd(),
+                            "claudecode": os.environ.get("CLAUDECODE"),
                             "env": {k: os.environ.get(k) for k in ("CLAUDE_MEMORY_CHILD", "CLAUDE_CONFIG_DIR")}}) + "\n")
 
 mode = os.environ.get("FAKE_CLAUDE_MODE", "ok")

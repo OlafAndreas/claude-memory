@@ -72,3 +72,29 @@ def test_cli_reindex_and_stats_run(tmp_path):
                        capture_output=True, text=True, env={**os.environ, "CLAUDE_CONFIG_DIR": ""})
     assert r.returncode == 0
     assert "hints shown: 2" in r.stdout and "hinted then read: 1/2" in r.stdout
+
+
+def test_add_hooks_quotes_paths_with_spaces(tmp_path):
+    p = tmp_path / "settings.json"
+    add_hooks(p, "/my venv/python", Path("/my repo"))
+    cmd = json.loads(p.read_text())["hooks"]["SessionStart"][0]["hooks"][0]["command"]
+    assert cmd == "'/my venv/python' '/my repo/hooks/session_start.py'"
+
+
+def test_add_hooks_keeps_symlink(tmp_path):
+    real = tmp_path / "dotfiles" / "settings.json"
+    real.parent.mkdir()
+    real.write_text("{}")
+    link = tmp_path / "settings.json"
+    link.symlink_to(real)
+    add_hooks(link, "/venv/python", Path("/repo"))
+    assert link.is_symlink() and "SessionStart" in json.loads(real.read_text())["hooks"]
+
+
+def test_cli_retry_failed(tmp_path):
+    env = {**os.environ, "CLAUDE_CONFIG_DIR": str(tmp_path / "cfg")}
+    root = tmp_path / "cfg" / "claude-memory"
+    (root / "queue" / "failed").mkdir(parents=True)
+    (root / "queue" / "failed" / "s1.json").write_text(json.dumps({"session_id": "s1", "attempts": 3}))
+    r = subprocess.run([sys.executable, str(REPO / "cli.py"), "retry-failed"], capture_output=True, text=True, env=env)
+    assert r.returncode == 0 and "requeued 1" in r.stdout
