@@ -92,4 +92,6 @@ def slugify(text: str, max_len: int = 40) -> str:
     text = text.replace("ø", "o").replace("æ", "ae").replace("å", "a")
     text = "".join(c for c in text if not unicodedata.combining(c))
     slug = re.sub(r"[^a-z0-9]+", "-", text).strip("-")
-    return slug[:max_len].rstrip("-") or "note"
+    if len(slug) > max_len:
+        slug = slug[:max_len + 1].rsplit("-", 1)[0] if "-" in slug[:max_len + 1] else slug[:max_len]
+    return slug.strip("-") or "note"

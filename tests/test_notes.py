@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from claude_memory.notes import Note, load_all, note_path, parse_note, render_note, write_note
+from claude_memory.notes import Note, load_all, note_path, parse_note, render_note, slugify, write_note
 from claude_memory.paths import config_dir, git_branch, memory_root
 
 ORIGIN = {"session_id": "7c1e", "cwd": "/x", "git_branch": None, "started": "a", "ended": "b"}
@@ -58,3 +58,9 @@ def test_git_branch_none_outside_repo(tmp_path):
 
 def test_git_branch_in_repo():
     assert git_branch(str(Path(__file__).parent)) is not None
+
+
+def test_slugify_cuts_at_word_boundary():
+    assert slugify("Measure before trusting assumed dimensions") == "measure-before-trusting-assumed"
+    assert slugify("Bøtte på Åsen") == "botte-pa-asen"
+    assert slugify("!!!") == "note"
