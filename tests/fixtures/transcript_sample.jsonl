@@ -1,0 +1,13 @@
+{"type": "permission-mode", "mode": "default"}
+{"type": "user", "message": {"role": "user", "content": "Can you check the bucket frame dimensions?<system-reminder>internal note</system-reminder>"}}
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "thinking", "thinking": "secret thoughts"}, {"type": "text", "text": "Sure, let me look."}, {"type": "tool_use", "name": "Read", "input": {"file_path": "/x"}}]}}
+{"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "content": "TOOL OUTPUT 247x196"}]}}
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": "The opening is assumed to be 247\u00d7196."}]}}
+{"type": "api-request-blob", "message": {"role": "user", "content": [{"type": "text", "text": "DUPLICATE BLOB"}]}}
+{"type": "attachment", "attachment": {"x": 1}}
+{not json
+{"type": "some-future-type", "message": {"role": "user", "content": "FUTURE"}}
+{"type": "user", "message": {"role": "user", "content": "Skill body text"}, "isMeta": true}
+{"type": "user", "message": {"role": "user", "content": [{"type": "text", "text": "Sidechain prompt"}]}, "isSidechain": true}
+{"type": "user", "message": {"role": "user", "content": [{"type": "text", "text": "It was 250 wide in reality."}]}}
+{"type": "assistant", "message": {"role": "assistant", "content": "Noted \u2014 250, not 247."}}
