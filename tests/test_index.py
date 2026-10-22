@@ -1,4 +1,4 @@
-from claude_memory.index import HINT_THRESHOLD, fts_query, search
+from claude_memory.index import HINT_MIN_TERMS, fts_query, search
 from claude_memory.indexer import rebuild_index
 from claude_memory.notes import Note, write_note
 from claude_memory.paths import memory_root
@@ -60,22 +60,32 @@ def test_kind_filter(root):
     assert {h.kind for h in search(root, "xylofon", kind="lesson")} == {"lesson"}
 
 
-def test_threshold_strong_match_passes(root):
+def test_strong_match_clears_gate(root):
     add(root, "lesson-oring", surface_when="kestrel, O-ring, hul ring, hollow, trykksikring",
         summary="Hollow O-ring in the Kestrel coupling is intentional")
     for i in range(20):
         add(root, f"filler-{i}", surface_when=f"filler topic {i}", body="weather today was fine")
     rebuild_index(root)
     hits = search(root, "hollow O-ring kestrel")
-    assert hits[0].id == "lesson-oring" and hits[0].score >= HINT_THRESHOLD
+    assert hits[0].id == "lesson-oring" and hits[0].strength >= HINT_MIN_TERMS
 
 
-def test_threshold_weak_match_fails(root):
-    add(root, "lesson-oring", surface_when="kestrel, O-ring", body="the weather was nice when we tested")
-    for i in range(20):
-        add(root, f"filler-{i}", surface_when=f"filler topic {i}", body="nothing much")
+def test_gate_works_with_tiny_corpus(root):
+    add(root, "only", surface_when="kestrel, O-ring, hollow", summary="Hollow O-ring")
     rebuild_index(root)
-    assert all(h.score < HINT_THRESHOLD for h in search(root, "what's the weather today"))
+    assert search(root, "is the hollow kestrel ring ok")[0].strength >= HINT_MIN_TERMS
+
+
+def test_body_only_words_do_not_count(root):
+    add(root, "lesson-oring", surface_when="kestrel, O-ring", body="the weather was nice when we tested today")
+    rebuild_index(root)
+    assert all(h.strength < HINT_MIN_TERMS for h in search(root, "what's the weather today"))
+
+
+def test_single_shared_word_does_not_clear_gate(root):
+    add(root, "A", surface_when="kestrel, coupling")
+    rebuild_index(root)
+    assert search(root, "kestrel")[0].strength == 1 < HINT_MIN_TERMS
 
 
 def test_profiles_isolated(tmp_path, monkeypatch):
@@ -99,20 +109,4 @@ def test_hit_fields(root):
     add(root, "A", surface_when="zebra", summary="Zebra note", cwd="/z")
     rebuild_index(root)
     h = search(root, "zebra")[0]
-    assert (h.id, h.kind, h.summary, h.date, h.cwd) == ("A", "lesson", "Zebra note", "2026-10-22", "/z")
-
-
-def test_threshold_single_distinctive_term_passes(root):
-    add(root, "lesson-oring", surface_when="kestrel, O-ring")
-    for i in range(20):
-        add(root, f"filler-{i}", surface_when=f"filler topic {i}")
-    rebuild_index(root)
-    assert search(root, "kestrel")[0].score >= HINT_THRESHOLD
-
-
-def test_threshold_body_only_rare_word_fails(root):
-    add(root, "A", surface_when="something else", body="we mentioned kestrel once in passing")
-    for i in range(20):
-        add(root, f"filler-{i}", surface_when=f"filler topic {i}")
-    rebuild_index(root)
-    assert all(h.score < HINT_THRESHOLD for h in search(root, "kestrel"))
+    assert (h.id, h.kind, h.summary, h.date, h.cwd, h.strength) == ("A", "lesson", "Zebra note", "2026-10-22", "/z", 1)

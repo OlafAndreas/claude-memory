@@ -19,9 +19,9 @@ _RECENT_HANDOFF_BOOST = 1.2
 _RECENT_DAYS = 7
 _MAX_TOKENS = 24
 
-# Calibrated in tests/test_index.py: one distinctive surface_when term scores ~5,
-# three ~15; incidental body-only words score under 2.
-HINT_THRESHOLD = 4.0
+# Hints need this many distinct prompt terms in a note's surface_when or summary.
+# bm25 only orders results: its IDF is near zero while the store holds few notes.
+HINT_MIN_TERMS = 2
 
 _STOPWORDS = frozenset("""
 the and for are but not you all any can had her was one our out has his how its may
@@ -40,6 +40,7 @@ class Hit(NamedTuple):
     date: str
     cwd: str
     score: float
+    strength: int
 
 
 _FOLD = str.maketrans({"ø": "o", "Ø": "o", "æ": "ae", "Æ": "ae"})
@@ -50,14 +51,18 @@ def fold(text: str) -> str:
     return text.lower().translate(_FOLD)
 
 
-def fts_query(text: str) -> str | None:
+def terms(text: str) -> list[str]:
     seen: list[str] = []
     for tok in re.findall(r"\w+", fold(text)):
         if len(tok) >= 3 and tok not in _STOPWORDS and tok not in seen:
             seen.append(tok)
         if len(seen) >= _MAX_TOKENS:
             break
-    return " OR ".join(f'"{t}"' for t in seen) or None
+    return seen
+
+
+def fts_query(text: str) -> str | None:
+    return " OR ".join(f'"{t}"' for t in terms(text)) or None
 
 
 def _related(a: str, b: str) -> bool:
@@ -70,10 +75,11 @@ def _related(a: str, b: str) -> bool:
 def search(root: Path, query: str, cwd: str | None = None, kind: str | None = None,
            limit: int = 5) -> list[Hit]:
     q = fts_query(query)
+    query_terms = set(terms(query))
     db_path = Path(root) / "index.sqlite"
     if q is None or not db_path.exists():
         return []
-    sql = (f"SELECT n.id, n.kind, n.summary, n.created, n.cwd, -{_BM25} "
+    sql = (f"SELECT n.id, n.kind, n.summary, n.created, n.cwd, n.surface_when, -{_BM25} "
            "FROM notes_fts JOIN notes n ON n.id = notes_fts.id WHERE notes_fts MATCH ?")
     args: list = [q]
     if kind:
@@ -89,11 +95,12 @@ def search(root: Path, query: str, cwd: str | None = None, kind: str | None = No
         return []
     recent = (datetime.now() - timedelta(days=_RECENT_DAYS)).date().isoformat()
     hits = []
-    for id_, kind_, summary, created, note_cwd, score in rows:
+    for id_, kind_, summary, created, note_cwd, surface_when, score in rows:
         if cwd and _related(cwd, note_cwd):
             score *= _CWD_BOOST
         if kind_ == "handoff" and (created or "")[:10] >= recent:
             score *= _RECENT_HANDOFF_BOOST
-        hits.append(Hit(id_, kind_, summary, (created or "")[:10], note_cwd, score))
-    hits.sort(key=lambda h: h.score, reverse=True)
+        strength = len(query_terms & set(re.findall(r"\w+", fold(f"{surface_when} {summary}"))))
+        hits.append(Hit(id_, kind_, summary, (created or "")[:10], note_cwd, score, strength))
+    hits.sort(key=lambda h: (h.strength, h.score), reverse=True)
     return hits[:limit]
