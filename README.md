@@ -8,6 +8,8 @@ Memory that connects Claude Code sessions, kept by Claude for itself.
   extracted from handoffs (those expire after 90 days unless a later session reads them).
 - Nothing is loaded at startup beyond one line. Each prompt is matched against the index and up
   to three one-line hints are injected when a note clearly fits; full notes are read on demand.
+- Sessions that end without the end hook (crash, `kill -9`) are picked up by the worker once their
+  transcript has been idle for 2 hours.
 
 Facts about Olaf and his projects stay in the existing `MEMORY.md` auto-memory. Design:
 `docs/superpowers/specs/2026-10-22-claude-memory-design.md`.

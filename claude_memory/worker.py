@@ -9,6 +9,7 @@ from __future__ import annotations
 import fcntl
 import json
 import os
+import time
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
@@ -22,6 +23,7 @@ from .transcript import condense, is_trivial, read_turns
 HANDOFF_TTL_DAYS = 30
 WORKER_NOTE_TTL_DAYS = 90
 MAX_ATTEMPTS = 3
+SWEEP_IDLE_HOURS = 2
 # ~75–100k tokens: well inside Haiku's context, so only day-long sessions get trimmed.
 CONDENSE_BUDGET = 300_000
 
@@ -123,6 +125,64 @@ def _process(root: Path, config_dir: Path, item: dict, timeout: int) -> str:
     return "written"
 
 
+# --- sweep ------------------------------------------------------------------------
+def _transcript_cwd(path: Path) -> str | None:
+    """Best-effort working directory from the transcript (the field is undocumented)."""
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            for _, line in zip(range(50), f):
+                try:
+                    cwd = json.loads(line).get("cwd")
+                except (ValueError, AttributeError):
+                    continue
+                if isinstance(cwd, str) and cwd:
+                    return cwd
+    except OSError:
+        pass
+    return None
+
+
+def sweep(root: Path, config_dir: Path, now: float) -> int:
+    """Queue transcripts whose session ended without a SessionEnd hook (crash, kill -9).
+
+    Only transcripts modified after sweep.since (created on the first run) and idle
+    for SWEEP_IDLE_HOURS are considered, so the first run never backfills history.
+    """
+    marker = root / "sweep.since"
+    if not marker.exists():
+        marker.write_text("")
+        return 0
+    since = marker.stat().st_mtime
+    idle_before = now - SWEEP_IDLE_HOURS * 3600
+    queued = 0
+    for t in config_dir.glob("projects/*/*.jsonl"):
+        sid = t.stem
+        try:
+            mtime = t.stat().st_mtime
+        except OSError:
+            continue
+        if not since <= mtime <= idle_before:
+            continue
+        if (root / "queue" / f"{sid}.json").exists() or (root / "queue" / "failed" / f"{sid}.json").exists():
+            continue
+        state = root / "state" / f"{sid}.json"
+        if state.exists():
+            try:
+                with open(t, "rb") as f:
+                    lines = sum(1 for _ in f)
+                if json.loads(state.read_text()).get("offset_lines", 0) >= lines:
+                    continue
+            except (OSError, ValueError):
+                continue
+        item = {"session_id": sid, "transcript_path": str(t), "cwd": _transcript_cwd(t),
+                "git_branch": None, "reason": "swept", "attempts": 0,
+                "ended": datetime.fromtimestamp(mtime).astimezone().isoformat(timespec="seconds")}
+        (root / "queue" / f"{sid}.json").write_text(json.dumps(item))
+        _log(root, sid, "swept")
+        queued += 1
+    return queued
+
+
 # --- entry points -----------------------------------------------------------------
 def run(root: Path, config_dir: Path, timeout: int = 180) -> dict:
     lock = open(root / "worker.lock", "w")
@@ -131,8 +191,9 @@ def run(root: Path, config_dir: Path, timeout: int = 180) -> dict:
     except BlockingIOError:
         lock.close()
         return {"locked": True}
-    counts = {"processed": 0, "written": 0, "skipped": 0, "failed": 0, "expired": 0}
+    counts = {"swept": 0, "processed": 0, "written": 0, "skipped": 0, "failed": 0, "expired": 0}
     try:
+        counts["swept"] = sweep(root, config_dir, time.time())
         for qfile in sorted((root / "queue").glob("*.json")):
             sid, item = qfile.stem, {}
             counts["processed"] += 1

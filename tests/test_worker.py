@@ -289,3 +289,84 @@ def test_long_session_is_not_cut_below_300k_chars(env, tmp_path):
     worker.run(env, cfg(env))
     p = calls(tmp_path)[0]["prompt"]
     assert "omitted" not in p and "Q050" in p
+
+
+# --- sweep: sessions that ended without a SessionEnd hook (crash, kill -9) ---------
+import os
+import time
+
+HOUR = 3600
+
+
+def orphan(env, sid, age_hours, users=3, cwd="/p/Crashed"):
+    proj = cfg(env) / "projects" / "-p-Crashed"
+    proj.mkdir(parents=True, exist_ok=True)
+    t = proj / f"{sid}.jsonl"
+    with open(t, "w") as f:
+        f.write(json.dumps({"type": "permission-mode", "cwd": cwd}) + "\n")
+    transcript(t, users=users)
+    old = time.time() - age_hours * HOUR
+    os.utime(t, (old, old))
+    return t
+
+
+def since(env, hours_ago):
+    m = env / "sweep.since"
+    m.write_text("")
+    old = time.time() - hours_ago * HOUR
+    os.utime(m, (old, old))
+
+
+def test_sweep_first_run_sets_marker_without_backfill(env):
+    orphan(env, "old-session", age_hours=48)
+    assert worker.sweep(env, cfg(env), time.time()) == 0
+    assert (env / "sweep.since").exists()
+
+
+def test_sweep_enqueues_idle_unprocessed_transcript(env):
+    since(env, 24)
+    t = orphan(env, "crashed1", age_hours=3)
+    assert worker.sweep(env, cfg(env), time.time()) == 1
+    item = json.loads((env / "queue" / "crashed1.json").read_text())
+    assert item["transcript_path"] == str(t) and item["reason"] == "swept" and item["cwd"] == "/p/Crashed"
+    assert item["attempts"] == 0 and item["ended"]
+
+
+def test_sweep_ignores_recently_active(env):
+    since(env, 24)
+    orphan(env, "live", age_hours=0.5)
+    assert worker.sweep(env, cfg(env), time.time()) == 0
+
+
+def test_sweep_ignores_transcripts_older_than_marker(env):
+    since(env, 24)
+    orphan(env, "ancient", age_hours=48)
+    assert worker.sweep(env, cfg(env), time.time()) == 0
+
+
+def test_sweep_ignores_processed_queued_and_failed(env):
+    since(env, 24)
+    t = orphan(env, "done", age_hours=3)
+    lines = len(t.read_text().splitlines())
+    (env / "state" / "done.json").write_text(json.dumps({"offset_lines": lines, "seq": 1, "started": None,
+                                                         "note_summaries": []}))
+    orphan(env, "queued", age_hours=3)
+    (env / "queue" / "queued.json").write_text("{}")
+    orphan(env, "broken", age_hours=3)
+    (env / "queue" / "failed" / "broken.json").write_text("{}")
+    assert worker.sweep(env, cfg(env), time.time()) == 0
+
+
+def test_sweep_picks_up_growth_after_processing(env):
+    since(env, 24)
+    t = orphan(env, "grew", age_hours=3)
+    (env / "state" / "grew.json").write_text(json.dumps({"offset_lines": 2, "seq": 1, "started": None,
+                                                         "note_summaries": []}))
+    assert worker.sweep(env, cfg(env), time.time()) == 1
+
+
+def test_run_sweeps_then_processes(env, tmp_path):
+    since(env, 24)
+    orphan(env, "crashed2", age_hours=3)
+    res = worker.run(env, cfg(env))
+    assert res["swept"] == 1 and res["written"] == 1
