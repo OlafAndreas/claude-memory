@@ -18,7 +18,7 @@ inner = os.environ.get("FAKE_CLAUDE_JSON") or json.dumps({
     "worth_keeping": mode != "notworth",
     "handoff": {"summary": "Measured the bucket: 250 wide, not 247",
                 "surface_when": "bøtte, HÅLLBAR, bucket, measurement",
-                "body": os.environ.get("FAKE_CLAUDE_BODY", "I assumed 247; Olaf measured 250.")},
+                "body": os.environ.get("FAKE_CLAUDE_BODY", "I assumed 247; the user measured 250.")},
     "notes": [{"kind": "lesson", "summary": "Measure before trusting assumed dimensions",
                "surface_when": "mål, måling, measure, assumed dimension", "body": "Ask for a caliper reading."}],
 })

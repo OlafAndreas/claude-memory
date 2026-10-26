@@ -31,13 +31,13 @@ def build_prompt(condensed: str, memory_index: str, previous_summary: str | None
         "",
         "Rules:",
         "- Write the handoff body in first person, addressed to the next session: what we did, what is "
-        "unresolved, what I got wrong and why, what changed between me and Olaf.",
-        "- Keep only Claude's own side. Facts about Olaf, his projects, preferences and rules belong in "
+        "unresolved, what I got wrong and why, what changed between me and the user.",
+        "- Keep only Claude's own side. Facts about the user, their projects, preferences and rules belong in "
         "MEMORY.md (its index is below); do not repeat them.",
         "- surface_when: comma-separated words and situations a future prompt would contain when this "
         "matters, in both Norwegian and English.",
         "- Never copy secrets, tokens, API keys, passwords, national ID numbers or personal details "
-        "about people other than Olaf.",
+        "about people other than the user.",
         f"- notes: at most {MAX_NOTES}, kind one of lesson (a mistake and why), outcome (what happened "
         "after something), question (an open curiosity). Only when they would matter beyond this session.",
         "- If nothing in this session is worth handing on, set worth_keeping to false.",

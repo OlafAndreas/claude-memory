@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 160" width="760" height="160" role="img" aria-label="claude-memory">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#E08A3C"/>
+      <stop offset="1" stop-color="#8E3B5E"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(16 16) scale(0.5)">
+    <rect width="256" height="256" rx="56" fill="url(#bg)"/>
+    <rect x="44" y="132" width="128" height="80" rx="14" fill="#FFFFFF" opacity="0.28"/>
+    <rect x="66" y="104" width="128" height="80" rx="14" fill="#FFFFFF" opacity="0.55"/>
+    <rect x="88" y="76" width="128" height="80" rx="14" fill="#FFFFFF"/>
+    <g stroke="#B5524A" stroke-width="8" stroke-linecap="round">
+      <path d="M 106 100 H 176"/>
+      <path d="M 106 118 H 196" opacity="0.6"/>
+      <path d="M 106 136 H 156" opacity="0.6"/>
+    </g>
+    <circle cx="212" cy="48" r="12" fill="#FFFFFF"/>
+    <path d="M 212 26 V 34 M 212 62 V 68 M 190 48 H 198 M 226 48 H 234" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" opacity="0.7"/>
+  </g>
+  <text x="172" y="98" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="68" font-weight="800" letter-spacing="-1.5" fill="#F3F4F8">claude<tspan fill="#F0A868" font-weight="600">memory</tspan></text>
+  <text x="174" y="134" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="20" font-weight="600" letter-spacing="2.5" fill="#F0A868">HAND OFF · HINT · RECALL</text>
+</svg>

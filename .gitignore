@@ -2,3 +2,4 @@
 __pycache__/
 .superpowers/
 *.pyc
+docs/superpowers/

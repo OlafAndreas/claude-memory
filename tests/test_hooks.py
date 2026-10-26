@@ -59,7 +59,7 @@ def test_child_guard_all_hooks(root):
 def test_start_line_exact_and_short(root):
     r = out(run("session_start.py", {"session_id": "s1", "cwd": "/x", "source": "compact"}))
     assert r.startswith("Claude-memory (session s1, cwd /x): your earlier handoffs")
-    assert "facts about Olaf go in MEMORY.md" in r and len(r) <= 400
+    assert "facts about the user go in MEMORY.md" in r and len(r) <= 400
 
 
 def test_hints_shown_then_deduped(root):

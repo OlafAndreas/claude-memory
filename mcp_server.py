@@ -67,7 +67,7 @@ def remember(kind: str, summary: str, surface_when: str, body: str, session_id: 
     """Save a long-term note of your own: lesson (a mistake and why), outcome (what happened
     after something) or question (an open curiosity).
 
-    Only Claude's own side goes here; facts about Olaf, his projects and preferences go in
+    Only Claude's own side goes here; facts about the user, their projects and preferences go in
     MEMORY.md. Write body in first person to a future session. surface_when lists the words
     and situations, in Norwegian and English, a future prompt would contain when this matters.
     session_id and cwd come from the Claude-memory startup line. Returns the note id.

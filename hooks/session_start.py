@@ -19,7 +19,7 @@ from claude_memory.paths import memory_root  # noqa: E402
 
 LINE = ("Claude-memory (session {session_id}, cwd {cwd}): your earlier handoffs, lessons, outcomes "
         "and questions are searchable via search_memory/read_memory; save your own lessons with "
-        "remember (facts about Olaf go in MEMORY.md). Pass this session_id to remember/read_memory. "
+        "remember (facts about the user go in MEMORY.md). Pass this session_id to remember/read_memory. "
         "Hints appear automatically when relevant.")
 
 

@@ -76,11 +76,11 @@ def test_command_has_guards(env, tmp_path):
 def test_prompt_contains_rules_and_memory_index(env, tmp_path):
     mem = cfg(env) / "projects" / "-Users-x" / "memory"
     mem.mkdir(parents=True)
-    (mem / "MEMORY.md").write_text("- [Fact](f.md) — Olaf likes FreeCAD")
+    (mem / "MEMORY.md").write_text("- [Fact](f.md) — The user likes FreeCAD")
     enqueue(env, "s1", transcript(tmp_path / "t.jsonl"))
     worker.run(env, cfg(env))
     p = calls(tmp_path)[0]["prompt"]
-    assert "Olaf likes FreeCAD" in p and "question 0" in p and "worth_keeping" in p
+    assert "The user likes FreeCAD" in p and "question 0" in p and "worth_keeping" in p
 
 
 def test_fenced_json_accepted(env, tmp_path, monkeypatch):

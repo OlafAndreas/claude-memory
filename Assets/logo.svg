@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="claude-memory">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#E08A3C"/>
+      <stop offset="1" stop-color="#8E3B5E"/>
+    </linearGradient>
+  </defs>
+  <g>
+    <rect width="256" height="256" rx="56" fill="url(#bg)"/>
+    <rect x="44" y="132" width="128" height="80" rx="14" fill="#FFFFFF" opacity="0.28"/>
+    <rect x="66" y="104" width="128" height="80" rx="14" fill="#FFFFFF" opacity="0.55"/>
+    <rect x="88" y="76" width="128" height="80" rx="14" fill="#FFFFFF"/>
+    <g stroke="#B5524A" stroke-width="8" stroke-linecap="round">
+      <path d="M 106 100 H 176"/>
+      <path d="M 106 118 H 196" opacity="0.6"/>
+      <path d="M 106 136 H 156" opacity="0.6"/>
+    </g>
+    <circle cx="212" cy="48" r="12" fill="#FFFFFF"/>
+    <path d="M 212 26 V 34 M 212 62 V 68 M 190 48 H 198 M 226 48 H 234" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" opacity="0.7"/>
+  </g>
+</svg>
