@@ -88,6 +88,26 @@ def test_single_shared_word_does_not_clear_gate(root):
     assert search(root, "kestrel")[0].strength == 1 < HINT_MIN_TERMS
 
 
+def test_part_of_a_phrase_does_not_count(root):
+    add(root, "rive", surface_when="xcode cloud, damaged app, zip", summary="Xcode Cloud build for the app")
+    rebuild_index(root)
+    hit = search(root, "build the app and fix the failing test in xcode")[0]
+    assert hit.strength == 0 and hit.matched == ()
+
+
+def test_whole_phrase_counts_each_term(root):
+    add(root, "rive", surface_when="xcode cloud, damaged app, zip")
+    rebuild_index(root)
+    hit = search(root, "the Xcode Cloud workflow fails")[0]
+    assert hit.matched == ("cloud", "xcode") and hit.strength >= HINT_MIN_TERMS
+
+
+def test_summary_words_do_not_count(root):
+    add(root, "A", surface_when="riveviewer", summary="Notarized build failed to open for friends")
+    rebuild_index(root)
+    assert search(root, "notarized build failed")[0].strength == 0
+
+
 def test_profiles_isolated(tmp_path, monkeypatch):
     monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(tmp_path / "a"))
     a = memory_root()
@@ -109,7 +129,8 @@ def test_hit_fields(root):
     add(root, "A", surface_when="zebra", summary="Zebra note", cwd="/z")
     rebuild_index(root)
     h = search(root, "zebra")[0]
-    assert (h.id, h.kind, h.summary, h.date, h.cwd, h.strength) == ("A", "lesson", "Zebra note", "2026-10-22", "/z", 1)
+    assert (h.id, h.kind, h.summary, h.date, h.cwd, h.strength, h.matched) == \
+        ("A", "lesson", "Zebra note", "2026-10-22", "/z", 1, ("zebra",))
 
 
 def test_rebuild_leaves_other_tmp_files_alone(root):

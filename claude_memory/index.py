@@ -19,7 +19,8 @@ _RECENT_HANDOFF_BOOST = 1.2
 _RECENT_DAYS = 7
 _MAX_TOKENS = 24
 
-# Hints need this many distinct prompt terms in a note's surface_when or summary.
+# Hints need this many distinct prompt terms, counted only from surface_when phrases whose
+# every term is in the prompt: "xcode cloud" needs both words, so "xcode" alone adds nothing.
 # bm25 only orders results: its IDF is near zero while the store holds few notes.
 HINT_MIN_TERMS = 2
 
@@ -41,6 +42,7 @@ class Hit(NamedTuple):
     cwd: str
     score: float
     strength: int
+    matched: tuple[str, ...]
 
 
 _FOLD = str.maketrans({"ø": "o", "Ø": "o", "æ": "ae", "Æ": "ae"})
@@ -63,6 +65,15 @@ def terms(text: str) -> list[str]:
 
 def fts_query(text: str) -> str | None:
     return " OR ".join(f'"{t}"' for t in terms(text)) or None
+
+
+def matched_terms(query_terms: set[str], surface_when: str) -> tuple[str, ...]:
+    covered: set[str] = set()
+    for phrase in surface_when.split(","):
+        phrase_terms = set(terms(phrase))
+        if phrase_terms and phrase_terms <= query_terms:
+            covered |= phrase_terms
+    return tuple(sorted(covered))
 
 
 def _related(a: str, b: str) -> bool:
@@ -100,7 +111,7 @@ def search(root: Path, query: str, cwd: str | None = None, kind: str | None = No
             score *= _CWD_BOOST
         if kind_ == "handoff" and (created or "")[:10] >= recent:
             score *= _RECENT_HANDOFF_BOOST
-        strength = len(query_terms & set(re.findall(r"\w+", fold(f"{surface_when} {summary}"))))
-        hits.append(Hit(id_, kind_, summary, (created or "")[:10], note_cwd, score, strength))
+        matched = matched_terms(query_terms, surface_when or "")
+        hits.append(Hit(id_, kind_, summary, (created or "")[:10], note_cwd, score, len(matched), matched))
     hits.sort(key=lambda h: (h.strength, h.score), reverse=True)
     return hits[:limit]

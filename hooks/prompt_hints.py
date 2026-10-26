@@ -18,19 +18,24 @@ from claude_memory.paths import memory_root, now_iso  # noqa: E402
 
 MAX_HINTS = 3
 QUERY_MAX_CHARS = 500
+# Messages the harness submits on its own: background task results and local command output.
+HARNESS_PREFIXES = ("<task-notification>", "<local-command-caveat>")
 
 
 def main() -> None:
     if os.environ.get("CLAUDE_MEMORY_CHILD") == "1":
         return
     data = json.load(sys.stdin)
+    prompt = data.get("prompt") or ""
+    if prompt.lstrip().startswith(HARNESS_PREFIXES):
+        return
     sid = data.get("session_id") or "unknown"
     cwd = data.get("cwd")
     root = memory_root()
     hinted_file = root / "log" / "hinted" / sid
     already = set(hinted_file.read_text().split()) if hinted_file.exists() else set()
 
-    hits = [h for h in search(root, (data.get("prompt") or "")[:QUERY_MAX_CHARS], cwd=cwd, limit=10)
+    hits = [h for h in search(root, prompt[:QUERY_MAX_CHARS], cwd=cwd, limit=10)
             if h.strength >= HINT_MIN_TERMS and h.id not in already][:MAX_HINTS]
     if not hits:
         return
@@ -44,7 +49,8 @@ def main() -> None:
         f.write("".join(f"{h.id}\n" for h in hits))
     with open(root / "log" / "hints.jsonl", "a", encoding="utf-8") as f:
         f.write(json.dumps({"ts": now_iso(), "session_id": sid, "cwd": cwd,
-                            "ids": [h.id for h in hits]}) + "\n")
+                            "ids": [h.id for h in hits],
+                            "matched": {h.id: list(h.matched) for h in hits}}) + "\n")
 
 
 if __name__ == "__main__":

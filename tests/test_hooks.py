@@ -71,6 +71,21 @@ def test_hints_shown_then_deduped(root):
     assert out(run("prompt_hints.py", p)) == ""
     log = [json.loads(l) for l in (root / "log" / "hints.jsonl").read_text().splitlines()]
     assert log[0]["ids"] == ["lesson-oring"] and log[0]["session_id"] == "s1"
+    assert log[0]["matched"] == {"lesson-oring": ["hollow", "kestrel", "ring"]}
+
+
+def test_no_hint_on_harness_messages(root):
+    seed(root); rebuild_index(root)
+    for prompt in ("<task-notification> hollow O-ring kestrel </task-notification>",
+                   "  <local-command-caveat>hollow O-ring kestrel</local-command-caveat>"):
+        assert out(run("prompt_hints.py", {"session_id": "s1", "cwd": "/x", "prompt": prompt})) == ""
+    assert not (root / "log" / "hints.jsonl").exists()
+
+
+def test_hint_on_slash_command_args(root):
+    seed(root); rebuild_index(root)
+    prompt = "<command-message>check</command-message> <command-args>hollow O-ring kestrel</command-args>"
+    assert "lesson-oring" in out(run("prompt_hints.py", {"session_id": "s1", "cwd": "/x", "prompt": prompt}))
 
 
 def test_hints_max_three(root):
